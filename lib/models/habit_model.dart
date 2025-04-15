@@ -12,6 +12,10 @@ class Habit {
   final List<bool> completionStatus; // For the last 7 days
   final DateTime createdAt;
   final int goal; // Days or times per period
+  final bool isQuantitative; // Whether this habit has a quantitative goal
+  final double targetValue; // Quantitative target (e.g., 8 cups, 5000 steps)
+  final double currentValue; // Current progress toward the target
+  final String unit; // Unit of measurement (e.g., cups, pages, steps)
 
   Habit({
     required this.id,
@@ -23,12 +27,19 @@ class Habit {
     required this.completionStatus,
     required this.createdAt,
     this.goal = 1,
+    this.isQuantitative = false,
+    this.targetValue = 0,
+    this.currentValue = 0,
+    this.unit = '',
   });
 
   int get daysCompleted => completionStatus.where((day) => day).length;
 
   double get progress =>
       completionStatus.isEmpty ? 0.0 : daysCompleted / completionStatus.length;
+
+  double get quantitativeProgress =>
+      targetValue > 0 ? (currentValue / targetValue).clamp(0.0, 1.0) : 0.0;
 
   factory Habit.fromJson(Map<String, dynamic> json) {
     return Habit(
@@ -41,6 +52,10 @@ class Habit {
       completionStatus: List<bool>.from(json['completionStatus']),
       createdAt: DateTime.parse(json['createdAt']),
       goal: json['goal'] ?? 1,
+      isQuantitative: json['isQuantitative'] ?? false,
+      targetValue: json['targetValue']?.toDouble() ?? 0.0,
+      currentValue: json['currentValue']?.toDouble() ?? 0.0,
+      unit: json['unit'] ?? '',
     );
   }
 
@@ -55,6 +70,10 @@ class Habit {
       'completionStatus': completionStatus,
       'createdAt': createdAt.toIso8601String(),
       'goal': goal,
+      'isQuantitative': isQuantitative,
+      'targetValue': targetValue,
+      'currentValue': currentValue,
+      'unit': unit,
     };
   }
 
@@ -68,6 +87,10 @@ class Habit {
     List<bool>? completionStatus,
     DateTime? createdAt,
     int? goal,
+    bool? isQuantitative,
+    double? targetValue,
+    double? currentValue,
+    String? unit,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -79,6 +102,10 @@ class Habit {
       completionStatus: completionStatus ?? this.completionStatus,
       createdAt: createdAt ?? this.createdAt,
       goal: goal ?? this.goal,
+      isQuantitative: isQuantitative ?? this.isQuantitative,
+      targetValue: targetValue ?? this.targetValue,
+      currentValue: currentValue ?? this.currentValue,
+      unit: unit ?? this.unit,
     );
   }
 }

@@ -34,6 +34,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
       color: AppColors.cardPurple,
       completionStatus: [true, false, true, true, true, false, false],
       createdAt: DateTime.now().subtract(const Duration(days: 14)),
+      isQuantitative: true,
+      targetValue: 8,
+      currentValue: 5,
+      unit: 'cups',
     ),
     Habit(
       id: '3',
@@ -43,6 +47,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
       color: AppColors.cardOrange,
       completionStatus: [true, true, true, true, true, true, false],
       createdAt: DateTime.now().subtract(const Duration(days: 60)),
+      isQuantitative: true,
+      targetValue: 20,
+      currentValue: 12,
+      unit: 'pages',
     ),
     Habit(
       id: '4',
@@ -52,6 +60,23 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
       color: AppColors.cardPink,
       completionStatus: [true, true, false, false, true, false, false],
       createdAt: DateTime.now().subtract(const Duration(days: 7)),
+      isQuantitative: true,
+      targetValue: 10,
+      currentValue: 6,
+      unit: 'minutes',
+    ),
+    Habit(
+      id: '5',
+      title: 'Walking',
+      description: 'Walking steps throughout the day',
+      icon: Icons.directions_walk_rounded,
+      color: Colors.teal,
+      completionStatus: [true, true, true, false, true, false, false],
+      createdAt: DateTime.now().subtract(const Duration(days: 21)),
+      isQuantitative: true,
+      targetValue: 5000,
+      currentValue: 3250,
+      unit: 'steps',
     ),
   ];
 
@@ -572,138 +597,283 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Success rate:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textLight,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${(habit.progress * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: habit.color,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${habit.daysCompleted}/${habit.completionStatus.length} days',
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Stack(
-            children: [
-              Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final maxWidth = constraints.maxWidth;
-                  return Container(
-                    height: 10,
-                    width: maxWidth * habit.progress,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [habit.color, habit.color.withOpacity(0.7)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(7, (index) {
-              final isCompleted =
-                  index < habit.completionStatus.length
-                      ? habit.completionStatus[index]
-                      : false;
-
-              return Flexible(
-                fit: FlexFit.tight,
-                child: Column(
+          // Quantitative goal display
+          if (habit.isQuantitative) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
                   children: [
                     Text(
-                      weekDays[index],
+                      'Progress:',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 14,
                         color: AppColors.textLight,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: () {
-                        if (index < habit.completionStatus.length) {
-                          setState(() {
-                            final newStatus = List<bool>.from(
-                              habit.completionStatus,
-                            );
-                            newStatus[index] = !newStatus[index];
-                            habits[habits.indexOf(habit)] = habit.copyWith(
-                              completionStatus: newStatus,
-                            );
-                          });
-                        }
-                      },
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color:
-                              isCompleted
-                                  ? habit.color
-                                  : habit.color.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                isCompleted
-                                    ? Colors.transparent
-                                    : habit.color.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child:
-                            isCompleted
-                                ? const Icon(
-                                  Icons.check,
-                                  size: 12,
-                                  color: Colors.white,
-                                )
-                                : null,
+                    const SizedBox(width: 8),
+                    Text(
+                      '${(habit.quantitativeProgress * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: habit.color,
                       ),
                     ),
                   ],
                 ),
-              );
-            }),
-          ),
+                Text(
+                  '${habit.currentValue.toStringAsFixed(habit.currentValue.truncateToDouble() == habit.currentValue ? 0 : 1)}/${habit.targetValue.toStringAsFixed(habit.targetValue.truncateToDouble() == habit.targetValue ? 0 : 1)} ${habit.unit}',
+                  style: TextStyle(
+                    color: AppColors.textLight,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Stack(
+              children: [
+                Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxWidth = constraints.maxWidth;
+                    return Container(
+                      height: 10,
+                      width: maxWidth * habit.quantitativeProgress,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [habit.color, habit.color.withOpacity(0.7)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildQuantitativeControl(
+                  icon: Icons.remove_circle_outline,
+                  onTap: () {
+                    final newValue = (habit.currentValue - 1).clamp(
+                      0.0,
+                      double.infinity,
+                    );
+                    setState(() {
+                      habits[habits.indexOf(habit)] = habit.copyWith(
+                        currentValue: newValue,
+                      );
+                    });
+                  },
+                  color: habit.color,
+                ),
+                const SizedBox(width: 24),
+                Column(
+                  children: [
+                    Text(
+                      habit.currentValue.toStringAsFixed(
+                        habit.currentValue.truncateToDouble() ==
+                                habit.currentValue
+                            ? 0
+                            : 1,
+                      ),
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    Text(
+                      habit.unit,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textLight,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 24),
+                _buildQuantitativeControl(
+                  icon: Icons.add_circle_outline,
+                  onTap: () {
+                    final newValue = habit.currentValue + 1;
+                    setState(() {
+                      habits[habits.indexOf(habit)] = habit.copyWith(
+                        currentValue: newValue,
+                      );
+                    });
+                  },
+                  color: habit.color,
+                ),
+              ],
+            ),
+          ] else ...[
+            // Regular habit display
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Success rate:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textLight,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${(habit.progress * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: habit.color,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${habit.daysCompleted}/${habit.completionStatus.length} days',
+                  style: TextStyle(
+                    color: AppColors.textLight,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Stack(
+              children: [
+                Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxWidth = constraints.maxWidth;
+                    return Container(
+                      height: 10,
+                      width: maxWidth * habit.progress,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [habit.color, habit.color.withOpacity(0.7)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(7, (index) {
+                final isCompleted =
+                    index < habit.completionStatus.length
+                        ? habit.completionStatus[index]
+                        : false;
+
+                return Flexible(
+                  fit: FlexFit.tight,
+                  child: Column(
+                    children: [
+                      Text(
+                        weekDays[index],
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textLight,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () {
+                          if (index < habit.completionStatus.length) {
+                            setState(() {
+                              final newStatus = List<bool>.from(
+                                habit.completionStatus,
+                              );
+                              newStatus[index] = !newStatus[index];
+                              habits[habits.indexOf(habit)] = habit.copyWith(
+                                completionStatus: newStatus,
+                              );
+                            });
+                          }
+                        },
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color:
+                                isCompleted
+                                    ? habit.color
+                                    : habit.color.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  isCompleted
+                                      ? Colors.transparent
+                                      : habit.color.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child:
+                              isCompleted
+                                  ? const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: Colors.white,
+                                  )
+                                  : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuantitativeControl({
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 32),
       ),
     );
   }

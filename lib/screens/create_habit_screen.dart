@@ -13,10 +13,13 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _targetValueController = TextEditingController();
+  final _unitController = TextEditingController();
 
   HabitFrequency _selectedFrequency = HabitFrequency.daily;
   IconData _selectedIcon = Icons.self_improvement_rounded;
   Color _selectedColor = AppColors.cardBlue;
+  bool _isQuantitative = false;
 
   final List<IconData> _iconOptions = [
     Icons.directions_run_rounded,
@@ -48,6 +51,8 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _targetValueController.dispose();
+    _unitController.dispose();
     super.dispose();
   }
 
@@ -99,6 +104,34 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
                         hintText: 'e.g. Meditate for 10 minutes every morning',
                         maxLines: 3,
                       ),
+                      const SizedBox(height: 20),
+                      _buildQuantitativeToggle(),
+                      if (_isQuantitative) ...[
+                        const SizedBox(height: 20),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: _buildInputField(
+                                title: 'Target Value',
+                                controller: _targetValueController,
+                                hintText: 'e.g. 8, 5000',
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: _buildInputField(
+                                title: 'Unit',
+                                controller: _unitController,
+                                hintText: 'e.g. cups, steps',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       _buildFrequencySelector(),
                       const SizedBox(height: 30),
@@ -153,6 +186,7 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
     required TextEditingController controller,
     required String hintText,
     int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,6 +203,7 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
         TextFormField(
           controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(color: AppColors.textLight.withOpacity(0.5)),
@@ -189,11 +224,85 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
             ),
           ),
           validator: (value) {
-            if (value == null || value.isEmpty) {
+            if (title == 'Target Value' && _isQuantitative) {
+              if (value == null || value.isEmpty) {
+                return 'Target value is required';
+              }
+              if (double.tryParse(value) == null) {
+                return 'Must be a valid number';
+              }
+              if (double.parse(value) <= 0) {
+                return 'Must be greater than zero';
+              }
+            } else if (title == 'Unit' && _isQuantitative) {
+              if (value == null || value.isEmpty) {
+                return 'Unit is required';
+              }
+            } else if (value == null ||
+                value.isEmpty && title == 'Habit Name') {
               return 'This field is required';
             }
             return null;
           },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuantitativeToggle() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Habit Type',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textDark,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Quantitative Goal',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Set a measurable target (e.g. 8 cups of water)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textLight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _isQuantitative,
+                activeColor: _selectedColor,
+                onChanged: (value) {
+                  setState(() {
+                    _isQuantitative = value;
+                  });
+                },
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -410,6 +519,11 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
       child: ElevatedButton(
         onPressed: () {
           if (_formKey.currentState!.validate()) {
+            double targetValue = 0;
+            if (_isQuantitative && _targetValueController.text.isNotEmpty) {
+              targetValue = double.parse(_targetValueController.text);
+            }
+
             final newHabit = Habit(
               id: DateTime.now().millisecondsSinceEpoch.toString(),
               title: _titleController.text,
@@ -419,6 +533,10 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
               frequency: _selectedFrequency,
               completionStatus: List.generate(7, (index) => false),
               createdAt: DateTime.now(),
+              isQuantitative: _isQuantitative,
+              targetValue: targetValue,
+              currentValue: 0,
+              unit: _isQuantitative ? _unitController.text : '',
             );
 
             Navigator.pop(context, newHabit);

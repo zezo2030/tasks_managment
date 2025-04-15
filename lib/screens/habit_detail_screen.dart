@@ -91,37 +91,40 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Add today's completion
-          final bool isCompleted = !(_habit.completionStatus.last);
-          final newStatus = List<bool>.from(_habit.completionStatus);
-          newStatus[newStatus.length - 1] = isCompleted;
+      floatingActionButton:
+          _habit.isQuantitative
+              ? null
+              : FloatingActionButton(
+                onPressed: () {
+                  // Add today's completion
+                  final bool isCompleted = !(_habit.completionStatus.last);
+                  final newStatus = List<bool>.from(_habit.completionStatus);
+                  newStatus[newStatus.length - 1] = isCompleted;
 
-          setState(() {
-            _habit = _habit.copyWith(completionStatus: newStatus);
-          });
+                  setState(() {
+                    _habit = _habit.copyWith(completionStatus: newStatus);
+                  });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isCompleted
-                    ? 'Marked as completed for today!'
-                    : 'Marked as not completed for today',
-                style: const TextStyle(color: Colors.white),
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isCompleted
+                            ? 'Marked as completed for today!'
+                            : 'Marked as not completed for today',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: isCompleted ? Colors.green : Colors.red,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                backgroundColor:
+                    _habit.completionStatus.last ? Colors.green : _habit.color,
+                child: Icon(
+                  _habit.completionStatus.last ? Icons.check : Icons.add,
+                  size: 28,
+                ),
               ),
-              backgroundColor: isCompleted ? Colors.green : Colors.red,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
-        backgroundColor:
-            _habit.completionStatus.last ? Colors.green : _habit.color,
-        child: Icon(
-          _habit.completionStatus.last ? Icons.check : Icons.add,
-          size: 28,
-        ),
-      ),
     );
   }
 
@@ -252,6 +255,10 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
   }
 
   Widget _buildProgressSection() {
+    if (_habit.isQuantitative) {
+      return _buildQuantitativeProgressSection();
+    }
+
     final int successPercentage = (_habit.progress * 100).toInt();
 
     return Column(
@@ -314,6 +321,157 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
         const SizedBox(height: 12),
         _buildWeeklyProgress(),
       ],
+    );
+  }
+
+  Widget _buildQuantitativeProgressSection() {
+    final int progressPercentage = (_habit.quantitativeProgress * 100).toInt();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Current Progress',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textDark,
+              ),
+            ),
+            Text(
+              '$progressPercentage% Completed',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _habit.color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Stack(
+          children: [
+            Container(
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            Container(
+              height: 12,
+              width:
+                  MediaQuery.of(context).size.width *
+                      _habit.quantitativeProgress -
+                  48,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_habit.color, _habit.color.withOpacity(0.7)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.05),
+                spreadRadius: 2,
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Text(
+                _habit.currentValue.toStringAsFixed(
+                  _habit.currentValue.truncateToDouble() == _habit.currentValue
+                      ? 0
+                      : 1,
+                ),
+                style: TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'out of ${_habit.targetValue.toStringAsFixed(_habit.targetValue.truncateToDouble() == _habit.targetValue ? 0 : 1)} ${_habit.unit}',
+                style: TextStyle(fontSize: 16, color: AppColors.textLight),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildQuantityButton(
+                    icon: Icons.remove,
+                    onTap: () {
+                      setState(() {
+                        final newValue = (_habit.currentValue - 1).clamp(
+                          0.0,
+                          double.infinity,
+                        );
+                        _habit = _habit.copyWith(currentValue: newValue);
+                      });
+                    },
+                  ),
+                  _buildQuantityButton(
+                    icon: Icons.add,
+                    onTap: () {
+                      setState(() {
+                        _habit = _habit.copyWith(
+                          currentValue: _habit.currentValue + 1,
+                        );
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'This Week',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textLight,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildWeeklyProgress(),
+      ],
+    );
+  }
+
+  Widget _buildQuantityButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _habit.color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(icon, color: _habit.color, size: 32),
+      ),
     );
   }
 
