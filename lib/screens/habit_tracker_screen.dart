@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/models/habit_model.dart';
 import 'package:tasks_managment/screens/create_habit_screen.dart';
@@ -15,70 +17,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
-  final List<Habit> habits = [
-    Habit(
-      id: '1',
-      title: 'Running',
-      description: 'Morning run for 30 minutes',
-      icon: Icons.directions_run_rounded,
-      color: AppColors.cardBlue,
-      completionStatus: [true, true, true, true, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    Habit(
-      id: '2',
-      title: 'Water Intake',
-      description: 'Drink 8 glasses of water',
-      icon: Icons.water_drop_rounded,
-      color: AppColors.cardPurple,
-      completionStatus: [true, false, true, true, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 14)),
-      isQuantitative: true,
-      targetValue: 8,
-      currentValue: 5,
-      unit: 'cups',
-    ),
-    Habit(
-      id: '3',
-      title: 'Reading',
-      description: 'Read for 30 minutes',
-      icon: Icons.book_rounded,
-      color: AppColors.cardOrange,
-      completionStatus: [true, true, true, true, true, true, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 60)),
-      isQuantitative: true,
-      targetValue: 20,
-      currentValue: 12,
-      unit: 'pages',
-    ),
-    Habit(
-      id: '4',
-      title: 'Meditation',
-      description: 'Meditate for 10 minutes',
-      icon: Icons.self_improvement_rounded,
-      color: AppColors.cardPink,
-      completionStatus: [true, true, false, false, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 7)),
-      isQuantitative: true,
-      targetValue: 10,
-      currentValue: 6,
-      unit: 'minutes',
-    ),
-    Habit(
-      id: '5',
-      title: 'Walking',
-      description: 'Walking steps throughout the day',
-      icon: Icons.directions_walk_rounded,
-      color: Colors.teal,
-      completionStatus: [true, true, true, false, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 21)),
-      isQuantitative: true,
-      targetValue: 5000,
-      currentValue: 3250,
-      unit: 'steps',
-    ),
-  ];
 
   @override
   void initState() {
@@ -103,310 +41,279 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+    return BlocProvider(
+      create: (context) => HabitCubit(),
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: SafeArea(
+          child: BlocBuilder<HabitCubit, HabitState>(
+            builder: (context, state) {
+              if (state is HabitLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (state is HabitError) {
+                return Center(child: Text('Error: ${state.message}'));
+              }
+
+              List<Habit> habits = [];
+              if (state is HabitLoaded) {
+                habits = state.habits;
+              }
+
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: const Text(
-                        'Habit Tracker',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textDark,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Text(
-                        'Keep track of your daily habits and build consistency',
-                        style: TextStyle(
-                          color: AppColors.textLight,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Row(
-                  children: [
-                    _buildStatCard(
-                      title: 'Total Habits',
-                      value: habits.length.toString(),
-                      icon: Icons.list_alt_rounded,
-                      color: AppColors.cardBlue,
-                    ),
-                    const SizedBox(width: 16),
-                    _buildStatCard(
-                      title: 'Today Completed',
-                      value:
-                          '${habits.where((h) => h.completionStatus.last).length}/${habits.length}',
-                      icon: Icons.today_rounded,
-                      color: AppColors.cardPink,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Your Habits',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () async {
-                        final newHabit = await Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder:
-                                (context, animation, secondaryAnimation) =>
-                                    const CreateHabitScreen(),
-                            transitionsBuilder: (
-                              context,
-                              animation,
-                              secondaryAnimation,
-                              child,
-                            ) {
-                              var begin = const Offset(1.0, 0.0);
-                              var end = Offset.zero;
-                              var curve = Curves.easeInOut;
-                              var tween = Tween(
-                                begin: begin,
-                                end: end,
-                              ).chain(CurveTween(curve: curve));
-                              return SlideTransition(
-                                position: animation.drive(tween),
-                                child: child,
-                              );
-                            },
-                            transitionDuration: const Duration(
-                              milliseconds: 500,
+                    _buildHeader(context),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: const Text(
+                              'Habit Tracker',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                                letterSpacing: -0.5,
+                              ),
                             ),
                           ),
-                        );
+                          const SizedBox(height: 8),
+                          FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Text(
+                              'Keep track of your daily habits and build consistency',
+                              style: TextStyle(
+                                color: AppColors.textLight,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Row(
+                        children: [
+                          _buildStatCard(
+                            title: 'Total Habits',
+                            value: habits.length.toString(),
+                            icon: Icons.list_alt_rounded,
+                            color: AppColors.cardBlue,
+                          ),
+                          const SizedBox(width: 16),
+                          _buildStatCard(
+                            title: 'Today Completed',
+                            value:
+                                '${habits.where((h) => h.completionStatus.last).length}/${habits.length}',
+                            icon: Icons.today_rounded,
+                            color: AppColors.cardPink,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Your Habits',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _navigateToCreateHabit(context),
+                            icon: const Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 18,
+                              color: AppColors.primaryColor,
+                            ),
+                            label: const Text(
+                              'Add New',
+                              style: TextStyle(
+                                color: AppColors.primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 8.0,
+                      ),
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: habits.length,
+                      itemBuilder: (context, index) {
+                        final habit = habits[index];
+                        final delay = Duration(milliseconds: 100 * index);
 
-                        if (newHabit != null) {
-                          setState(() {
-                            habits.add(newHabit);
-                          });
-                        }
+                        return FutureBuilder(
+                          future: Future.delayed(delay),
+                          builder: (context, snapshot) {
+                            return AnimatedOpacity(
+                              duration: const Duration(milliseconds: 500),
+                              opacity:
+                                  snapshot.connectionState ==
+                                          ConnectionState.done
+                                      ? 1.0
+                                      : 0.0,
+                              child: GestureDetector(
+                                onTap:
+                                    () =>
+                                        _navigateToHabitDetail(context, habit),
+                                child: _buildDetailedHabitCard(context, habit),
+                              ),
+                            );
+                          },
+                        );
                       },
-                      icon: const Icon(
-                        Icons.add_circle_outline_rounded,
-                        size: 18,
-                        color: AppColors.primaryColor,
-                      ),
-                      label: const Text(
-                        'Add New',
-                        style: TextStyle(
-                          color: AppColors.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                    ),
+                    const SizedBox(height: 80),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        floatingActionButton: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: 1.0 + 0.1 * _animationController.value,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primaryColor, AppColors.secondaryColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryColor.withOpacity(0.3),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: 8.0,
+                child: FloatingActionButton.extended(
+                  onPressed: () => _navigateToCreateHabit(context),
+                  tooltip: 'Add New Habit',
+                  elevation: 0,
+                  backgroundColor: Colors.transparent,
+                  isExtended: true,
+                  extendedPadding: const EdgeInsets.symmetric(horizontal: 24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  icon: const Icon(
+                    Icons.add_circle_rounded,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    'Add New Habit',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  extendedIconLabelSpacing: 12,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: habits.length,
-                itemBuilder: (context, index) {
-                  final habit = habits[index];
-                  final delay = Duration(milliseconds: 100 * index);
-
-                  return FutureBuilder(
-                    future: Future.delayed(delay),
-                    builder: (context, snapshot) {
-                      return AnimatedOpacity(
-                        duration: const Duration(milliseconds: 500),
-                        opacity:
-                            snapshot.connectionState == ConnectionState.done
-                                ? 1.0
-                                : 0.0,
-                        child: GestureDetector(
-                          onTap: () async {
-                            final updatedHabit = await Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder:
-                                    (context, animation, secondaryAnimation) =>
-                                        HabitDetailScreen(habit: habit),
-                                transitionsBuilder: (
-                                  context,
-                                  animation,
-                                  secondaryAnimation,
-                                  child,
-                                ) {
-                                  var begin = const Offset(1.0, 0.0);
-                                  var end = Offset.zero;
-                                  var curve = Curves.easeInOut;
-                                  var tween = Tween(
-                                    begin: begin,
-                                    end: end,
-                                  ).chain(CurveTween(curve: curve));
-                                  return SlideTransition(
-                                    position: animation.drive(tween),
-                                    child: child,
-                                  );
-                                },
-                                transitionDuration: const Duration(
-                                  milliseconds: 500,
-                                ),
-                              ),
-                            );
-
-                            if (updatedHabit != null) {
-                              setState(() {
-                                final index = habits.indexWhere(
-                                  (h) => h.id == updatedHabit.id,
-                                );
-                                if (index != -1) {
-                                  habits[index] = updatedHabit;
-                                }
-                              });
-                            }
-                          },
-                          child: _buildDetailedHabitCard(habit),
-                        ),
-                      );
-                    },
-                  );
-                },
               ),
-              const SizedBox(height: 80),
-            ],
-          ),
+            );
+          },
         ),
       ),
-      floatingActionButton: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: 1.0 + 0.1 * _animationController.value,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primaryColor, AppColors.secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: FloatingActionButton.extended(
-                onPressed: () async {
-                  // Add button press animation
-                  if (_animationController.status ==
-                      AnimationStatus.completed) {
-                    _animationController.reverse().then(
-                      (_) => _animationController.forward(),
-                    );
-                  } else {
-                    _animationController.forward();
-                  }
+    );
+  }
 
-                  final newHabit = await Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder:
-                          (context, animation, secondaryAnimation) =>
-                              const CreateHabitScreen(),
-                      transitionsBuilder: (
-                        context,
-                        animation,
-                        secondaryAnimation,
-                        child,
-                      ) {
-                        var begin = const Offset(1.0, 0.0);
-                        var end = Offset.zero;
-                        var curve = Curves.easeInOut;
-                        var tween = Tween(
-                          begin: begin,
-                          end: end,
-                        ).chain(CurveTween(curve: curve));
-                        return SlideTransition(
-                          position: animation.drive(tween),
-                          child: child,
-                        );
-                      },
-                      transitionDuration: const Duration(milliseconds: 500),
-                    ),
-                  );
+  Future<void> _navigateToCreateHabit(BuildContext context) async {
+    // Add button press animation
+    if (_animationController.status == AnimationStatus.completed) {
+      _animationController.reverse().then(
+        (_) => _animationController.forward(),
+      );
+    } else {
+      _animationController.forward();
+    }
 
-                  if (newHabit != null) {
-                    setState(() {
-                      habits.add(newHabit);
-                    });
-                  }
-                },
-                tooltip: 'Add New Habit',
-                elevation: 0,
-                backgroundColor: Colors.transparent,
-                isExtended: true,
-                extendedPadding: const EdgeInsets.symmetric(horizontal: 24),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                icon: const Icon(
-                  Icons.add_circle_rounded,
-                  size: 26,
-                  color: Colors.white,
-                ),
-                label: const Text(
-                  'Add New Habit',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                extendedIconLabelSpacing: 12,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
+    final newHabit = await Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder:
+            (context, animation, secondaryAnimation) =>
+                const CreateHabitScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          var begin = const Offset(1.0, 0.0);
+          var end = Offset.zero;
+          var curve = Curves.easeInOut;
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
           );
         },
+        transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+
+    if (newHabit != null) {
+      context.read<HabitCubit>().addHabit(newHabit);
+    }
+  }
+
+  Future<void> _navigateToHabitDetail(BuildContext context, Habit habit) async {
+    final updatedHabit = await Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder:
+            (context, animation, secondaryAnimation) =>
+                HabitDetailScreen(habit: habit),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          var begin = const Offset(1.0, 0.0);
+          var end = Offset.zero;
+          var curve = Curves.easeInOut;
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
+
+    if (updatedHabit != null) {
+      context.read<HabitCubit>().updateHabit(updatedHabit);
+    }
   }
 
   Widget _buildHeader(BuildContext context) {
@@ -522,7 +429,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
     );
   }
 
-  Widget _buildDetailedHabitCard(Habit habit) {
+  Widget _buildDetailedHabitCard(BuildContext context, Habit habit) {
     final weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return Container(
@@ -667,17 +574,18 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildQuantitativeControl(
+                  context: context,
+                  habitId: habit.id,
                   icon: Icons.remove_circle_outline,
                   onTap: () {
                     final newValue = (habit.currentValue - 1).clamp(
                       0.0,
                       double.infinity,
                     );
-                    setState(() {
-                      habits[habits.indexOf(habit)] = habit.copyWith(
-                        currentValue: newValue,
-                      );
-                    });
+                    context.read<HabitCubit>().updateQuantitativeProgress(
+                      habit.id,
+                      newValue,
+                    );
                   },
                   color: habit.color,
                 ),
@@ -708,14 +616,15 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
                 ),
                 const SizedBox(width: 24),
                 _buildQuantitativeControl(
+                  context: context,
+                  habitId: habit.id,
                   icon: Icons.add_circle_outline,
                   onTap: () {
                     final newValue = habit.currentValue + 1;
-                    setState(() {
-                      habits[habits.indexOf(habit)] = habit.copyWith(
-                        currentValue: newValue,
-                      );
-                    });
+                    context.read<HabitCubit>().updateQuantitativeProgress(
+                      habit.id,
+                      newValue,
+                    );
                   },
                   color: habit.color,
                 ),
@@ -811,15 +720,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
                       GestureDetector(
                         onTap: () {
                           if (index < habit.completionStatus.length) {
-                            setState(() {
-                              final newStatus = List<bool>.from(
-                                habit.completionStatus,
-                              );
-                              newStatus[index] = !newStatus[index];
-                              habits[habits.indexOf(habit)] = habit.copyWith(
-                                completionStatus: newStatus,
-                              );
-                            });
+                            context.read<HabitCubit>().toggleHabitCompletion(
+                              habit.id,
+                              index,
+                            );
                           }
                         },
                         child: Container(
@@ -861,6 +765,8 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
   }
 
   Widget _buildQuantitativeControl({
+    required BuildContext context,
+    required String habitId,
     required IconData icon,
     required VoidCallback onTap,
     required Color color,

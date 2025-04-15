@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/models/habit_model.dart';
 
@@ -58,73 +60,93 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+    return BlocProvider(
+      create: (context) => HabitCubit()..updateHabit(_habit),
+      child: BlocConsumer<HabitCubit, HabitState>(
+        listener: (context, state) {
+          if (state is HabitUpdated) {
+            _habit = state.habit;
+          }
+        },
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHabitHeader(),
-                    const SizedBox(height: 24),
-                    _buildProgressSection(),
-                    const SizedBox(height: 30),
-                    _buildMonthlyCalendar(),
-                    const SizedBox(height: 30),
-                    _buildStatisticsSection(),
-                    const SizedBox(height: 30),
-                    _buildStreakSection(),
-                    const SizedBox(
-                      height: 80,
-                    ), // Add space for the floating action button
+                    _buildHeader(context),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHabitHeader(),
+                          const SizedBox(height: 24),
+                          _buildProgressSection(context),
+                          const SizedBox(height: 30),
+                          _buildMonthlyCalendar(),
+                          const SizedBox(height: 30),
+                          _buildStatisticsSection(),
+                          const SizedBox(height: 30),
+                          _buildStreakSection(),
+                          const SizedBox(
+                            height: 80,
+                          ), // Add space for the floating action button
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton:
-          _habit.isQuantitative
-              ? null
-              : FloatingActionButton(
-                onPressed: () {
-                  // Add today's completion
-                  final bool isCompleted = !(_habit.completionStatus.last);
-                  final newStatus = List<bool>.from(_habit.completionStatus);
-                  newStatus[newStatus.length - 1] = isCompleted;
+            ),
+            floatingActionButton:
+                _habit.isQuantitative
+                    ? null
+                    : FloatingActionButton(
+                      onPressed: () {
+                        // Add today's completion
+                        final bool isCompleted =
+                            !(_habit.completionStatus.last);
+                        final newStatus = List<bool>.from(
+                          _habit.completionStatus,
+                        );
+                        newStatus[newStatus.length - 1] = isCompleted;
 
-                  setState(() {
-                    _habit = _habit.copyWith(completionStatus: newStatus);
-                  });
+                        // Update via cubit
+                        final updatedHabit = _habit.copyWith(
+                          completionStatus: newStatus,
+                        );
+                        context.read<HabitCubit>().updateHabit(updatedHabit);
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isCompleted
-                            ? 'Marked as completed for today!'
-                            : 'Marked as not completed for today',
-                        style: const TextStyle(color: Colors.white),
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isCompleted
+                                  ? 'Marked as completed for today!'
+                                  : 'Marked as not completed for today',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor:
+                                isCompleted ? Colors.green : Colors.red,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      backgroundColor:
+                          _habit.completionStatus.last
+                              ? Colors.green
+                              : _habit.color,
+                      child: Icon(
+                        _habit.completionStatus.last ? Icons.check : Icons.add,
+                        size: 28,
                       ),
-                      backgroundColor: isCompleted ? Colors.green : Colors.red,
-                      duration: const Duration(seconds: 2),
                     ),
-                  );
-                },
-                backgroundColor:
-                    _habit.completionStatus.last ? Colors.green : _habit.color,
-                child: Icon(
-                  _habit.completionStatus.last ? Icons.check : Icons.add,
-                  size: 28,
-                ),
-              ),
+          );
+        },
+      ),
     );
   }
 
@@ -254,9 +276,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
     );
   }
 
-  Widget _buildProgressSection() {
+  Widget _buildProgressSection(BuildContext context) {
     if (_habit.isQuantitative) {
-      return _buildQuantitativeProgressSection();
+      return _buildQuantitativeProgressSection(context);
     }
 
     final int successPercentage = (_habit.progress * 100).toInt();
@@ -319,12 +341,12 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
           ),
         ),
         const SizedBox(height: 12),
-        _buildWeeklyProgress(),
+        _buildWeeklyProgress(context),
       ],
     );
   }
 
-  Widget _buildQuantitativeProgressSection() {
+  Widget _buildQuantitativeProgressSection(BuildContext context) {
     final int progressPercentage = (_habit.quantitativeProgress * 100).toInt();
 
     return Column(
@@ -419,23 +441,23 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
                   _buildQuantityButton(
                     icon: Icons.remove,
                     onTap: () {
-                      setState(() {
-                        final newValue = (_habit.currentValue - 1).clamp(
-                          0.0,
-                          double.infinity,
-                        );
-                        _habit = _habit.copyWith(currentValue: newValue);
-                      });
+                      final newValue = (_habit.currentValue - 1).clamp(
+                        0.0,
+                        double.infinity,
+                      );
+                      context.read<HabitCubit>().updateQuantitativeProgress(
+                        _habit.id,
+                        newValue,
+                      );
                     },
                   ),
                   _buildQuantityButton(
                     icon: Icons.add,
                     onTap: () {
-                      setState(() {
-                        _habit = _habit.copyWith(
-                          currentValue: _habit.currentValue + 1,
-                        );
-                      });
+                      context.read<HabitCubit>().updateQuantitativeProgress(
+                        _habit.id,
+                        _habit.currentValue + 1,
+                      );
                     },
                   ),
                 ],
@@ -453,7 +475,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
           ),
         ),
         const SizedBox(height: 12),
-        _buildWeeklyProgress(),
+        _buildWeeklyProgress(context),
       ],
     );
   }
@@ -475,7 +497,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
     );
   }
 
-  Widget _buildWeeklyProgress() {
+  Widget _buildWeeklyProgress(BuildContext context) {
     final weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return Container(
@@ -511,27 +533,41 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                width: 35,
-                height: 35,
-                decoration: BoxDecoration(
-                  color:
-                      isCompleted
-                          ? _habit.color
-                          : _habit.color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
+              GestureDetector(
+                onTap: () {
+                  if (index < _habit.completionStatus.length) {
+                    context.read<HabitCubit>().toggleHabitCompletion(
+                      _habit.id,
+                      index,
+                    );
+                  }
+                },
+                child: Container(
+                  width: 35,
+                  height: 35,
+                  decoration: BoxDecoration(
                     color:
                         isCompleted
-                            ? Colors.transparent
-                            : _habit.color.withOpacity(0.3),
-                    width: 1,
+                            ? _habit.color
+                            : _habit.color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color:
+                          isCompleted
+                              ? Colors.transparent
+                              : _habit.color.withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
+                  child:
+                      isCompleted
+                          ? const Icon(
+                            Icons.check,
+                            size: 20,
+                            color: Colors.white,
+                          )
+                          : null,
                 ),
-                child:
-                    isCompleted
-                        ? const Icon(Icons.check, size: 20, color: Colors.white)
-                        : null,
               ),
             ],
           );
