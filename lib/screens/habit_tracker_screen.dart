@@ -42,7 +42,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => HabitCubit(),
+      create: (context) => HabitCubit()..loadHabits(),
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
         body: SafeArea(
@@ -311,8 +311,12 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
       ),
     );
 
-    if (updatedHabit != null) {
+    // If we received an updated habit back, update it in the cubit
+    if (updatedHabit != null && updatedHabit is Habit) {
       context.read<HabitCubit>().updateHabit(updatedHabit);
+    } else {
+      // If no habit was returned, reload habits to ensure they're displayed
+      context.read<HabitCubit>().loadHabits();
     }
   }
 

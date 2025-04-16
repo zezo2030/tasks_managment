@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks_managment/core/constants.dart';
-import 'package:tasks_managment/models/habit_model.dart';
 import 'package:tasks_managment/models/task_model.dart';
+import 'package:tasks_managment/models/habit_model.dart';
 import 'package:tasks_managment/screens/day_view_screen.dart';
 import 'package:tasks_managment/screens/habit_tracker_screen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,45 +82,6 @@ class _HomeScreenState extends State<HomeScreen>
     ),
   ];
 
-  final List<Habit> habits = [
-    Habit(
-      id: '1',
-      title: 'Running',
-      description: 'Morning run for 30 minutes',
-      icon: Icons.directions_run_rounded,
-      color: AppColors.cardBlue,
-      completionStatus: [true, true, true, true, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    Habit(
-      id: '2',
-      title: 'Water Intake',
-      description: 'Drink 8 glasses of water',
-      icon: Icons.water_drop_rounded,
-      color: AppColors.cardPurple,
-      completionStatus: [true, false, true, true, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 14)),
-    ),
-    Habit(
-      id: '3',
-      title: 'Reading',
-      description: 'Read for 30 minutes',
-      icon: Icons.book_rounded,
-      color: AppColors.cardOrange,
-      completionStatus: [true, true, true, true, true, true, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 60)),
-    ),
-    Habit(
-      id: '4',
-      title: 'Meditation',
-      description: 'Meditate for 10 minutes',
-      icon: Icons.self_improvement_rounded,
-      color: AppColors.cardPink,
-      completionStatus: [true, true, false, false, true, false, false],
-      createdAt: DateTime.now().subtract(const Duration(days: 7)),
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -139,6 +102,9 @@ class _HomeScreenState extends State<HomeScreen>
     );
 
     _animationController.forward();
+
+    // Fetch habits when screen initializes
+    context.read<HabitCubit>().loadHabits();
   }
 
   @override
@@ -332,51 +298,87 @@ class _HomeScreenState extends State<HomeScreen>
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 120,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        children:
-                            habits
-                                .map(
-                                  (habit) => GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        PageRouteBuilder(
-                                          pageBuilder:
-                                              (
-                                                context,
-                                                animation,
-                                                secondaryAnimation,
-                                              ) => const HabitTrackerScreen(),
-                                          transitionsBuilder: (
-                                            context,
-                                            animation,
-                                            secondaryAnimation,
-                                            child,
-                                          ) {
-                                            var begin = const Offset(1.0, 0.0);
-                                            var end = Offset.zero;
-                                            var curve = Curves.easeInOut;
-                                            var tween = Tween(
-                                              begin: begin,
-                                              end: end,
-                                            ).chain(CurveTween(curve: curve));
-                                            return SlideTransition(
-                                              position: animation.drive(tween),
-                                              child: child,
-                                            );
-                                          },
-                                          transitionDuration: const Duration(
-                                            milliseconds: 500,
+                      child: BlocBuilder<HabitCubit, HabitState>(
+                        builder: (context, state) {
+                          if (state is HabitLoaded) {
+                            final habits = state.habits;
+                            return ListView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              children:
+                                  habits.isEmpty
+                                      ? [
+                                        const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(16.0),
+                                            child: Text(
+                                              'No habits yet. Tap + to create one!',
+                                              style: TextStyle(
+                                                color: AppColors.textLight,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      );
-                                    },
-                                    child: _buildHabitCard(habit),
-                                  ),
-                                )
-                                .toList(),
+                                      ]
+                                      : habits
+                                          .map(
+                                            (habit) => GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  PageRouteBuilder(
+                                                    pageBuilder:
+                                                        (
+                                                          context,
+                                                          animation,
+                                                          secondaryAnimation,
+                                                        ) =>
+                                                            const HabitTrackerScreen(),
+                                                    transitionsBuilder: (
+                                                      context,
+                                                      animation,
+                                                      secondaryAnimation,
+                                                      child,
+                                                    ) {
+                                                      var begin = const Offset(
+                                                        1.0,
+                                                        0.0,
+                                                      );
+                                                      var end = Offset.zero;
+                                                      var curve =
+                                                          Curves.easeInOut;
+                                                      var tween = Tween(
+                                                        begin: begin,
+                                                        end: end,
+                                                      ).chain(
+                                                        CurveTween(
+                                                          curve: curve,
+                                                        ),
+                                                      );
+                                                      return SlideTransition(
+                                                        position: animation
+                                                            .drive(tween),
+                                                        child: child,
+                                                      );
+                                                    },
+                                                    transitionDuration:
+                                                        const Duration(
+                                                          milliseconds: 500,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                              child: _buildHabitCard(habit),
+                                            ),
+                                          )
+                                          .toList(),
+                            );
+                          }
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 30),

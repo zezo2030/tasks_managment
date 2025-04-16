@@ -1,28 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-enum HabitFrequency { daily, weekly, custom }
+part 'habit_model.g.dart';
 
+@HiveType(typeId: 0)
+enum HabitFrequency {
+  @HiveField(0)
+  daily,
+  @HiveField(1)
+  weekly,
+  @HiveField(2)
+  custom,
+}
+
+@HiveType(typeId: 1)
 class Habit {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String title;
+
+  @HiveField(2)
   final String description;
-  final IconData icon;
-  final Color color;
+
+  @HiveField(3)
+  final int iconData;
+
+  @HiveField(4)
+  final int colorValue;
+
+  @HiveField(5)
   final HabitFrequency frequency;
-  final List<bool> completionStatus; // For the last 7 days
+
+  @HiveField(6)
+  final List<bool> completionStatus;
+
+  @HiveField(7)
   final DateTime createdAt;
-  final int goal; // Days or times per period
-  final bool isQuantitative; // Whether this habit has a quantitative goal
-  final double targetValue; // Quantitative target (e.g., 8 cups, 5000 steps)
-  final double currentValue; // Current progress toward the target
-  final String unit; // Unit of measurement (e.g., cups, pages, steps)
+
+  @HiveField(8)
+  final int goal;
+
+  @HiveField(9)
+  final bool isQuantitative;
+
+  @HiveField(10)
+  final double targetValue;
+
+  @HiveField(11)
+  final double currentValue;
+
+  @HiveField(12)
+  final String unit;
+
+  // Getters for IconData and Color (not stored directly in Hive)
+  IconData get icon => IconData(iconData, fontFamily: 'MaterialIcons');
+  Color get color => Color(colorValue);
 
   Habit({
     required this.id,
     required this.title,
     this.description = '',
-    required this.icon,
-    required this.color,
+    required IconData icon,
+    required Color color,
     this.frequency = HabitFrequency.daily,
     required this.completionStatus,
     required this.createdAt,
@@ -31,7 +73,8 @@ class Habit {
     this.targetValue = 0,
     this.currentValue = 0,
     this.unit = '',
-  });
+  }) : iconData = icon.codePoint,
+       colorValue = color.value;
 
   int get daysCompleted => completionStatus.where((day) => day).length;
 
@@ -64,8 +107,8 @@ class Habit {
       'id': id,
       'title': title,
       'description': description,
-      'icon': icon.codePoint,
-      'color': color.value,
+      'icon': iconData,
+      'color': colorValue,
       'frequency': frequency.name,
       'completionStatus': completionStatus,
       'createdAt': createdAt.toIso8601String(),

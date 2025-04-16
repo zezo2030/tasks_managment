@@ -1,85 +1,39 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
 import 'package:tasks_managment/models/habit_model.dart';
+import 'package:tasks_managment/services/habit_storage_service.dart';
 
 part 'habit_state.dart';
 
 class HabitCubit extends Cubit<HabitState> {
+  final HabitStorageService _storageService;
   List<Habit> _habits = [];
 
-  HabitCubit() : super(HabitInitial()) {
-    // Initialize with default habits
-    _habits = [
-      Habit(
-        id: '1',
-        title: 'Running',
-        description: 'Morning run for 30 minutes',
-        icon: Icons.directions_run_rounded,
-        color: const Color(0xFF4C9BFB), // AppColors.cardBlue
-        completionStatus: [true, true, true, true, true, false, false],
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-      ),
-      Habit(
-        id: '2',
-        title: 'Water Intake',
-        description: 'Drink 8 glasses of water',
-        icon: Icons.water_drop_rounded,
-        color: const Color(0xFF9B51E0), // AppColors.cardPurple
-        completionStatus: [true, false, true, true, true, false, false],
-        createdAt: DateTime.now().subtract(const Duration(days: 14)),
-        isQuantitative: true,
-        targetValue: 8,
-        currentValue: 5,
-        unit: 'cups',
-      ),
-      Habit(
-        id: '3',
-        title: 'Reading',
-        description: 'Read for 30 minutes',
-        icon: Icons.book_rounded,
-        color: const Color(0xFFF2994A), // AppColors.cardOrange
-        completionStatus: [true, true, true, true, true, true, false],
-        createdAt: DateTime.now().subtract(const Duration(days: 60)),
-        isQuantitative: true,
-        targetValue: 20,
-        currentValue: 12,
-        unit: 'pages',
-      ),
-      Habit(
-        id: '4',
-        title: 'Meditation',
-        description: 'Meditate for 10 minutes',
-        icon: Icons.self_improvement_rounded,
-        color: const Color(0xFFF1678E), // AppColors.cardPink
-        completionStatus: [true, true, false, false, true, false, false],
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        isQuantitative: true,
-        targetValue: 10,
-        currentValue: 6,
-        unit: 'minutes',
-      ),
-      Habit(
-        id: '5',
-        title: 'Walking',
-        description: 'Walking steps throughout the day',
-        icon: Icons.directions_walk_rounded,
-        color: Colors.teal,
-        completionStatus: [true, true, true, false, true, false, false],
-        createdAt: DateTime.now().subtract(const Duration(days: 21)),
-        isQuantitative: true,
-        targetValue: 5000,
-        currentValue: 3250,
-        unit: 'steps',
-      ),
-    ];
+  HabitCubit({HabitStorageService? storageService})
+    : _storageService = storageService ?? HabitStorageService(),
+      super(HabitInitial()) {
     loadHabits();
   }
 
   // Load all habits and emit HabitLoaded state
-  void loadHabits() {
+  Future<void> loadHabits() async {
     emit(HabitLoading());
     try {
+      // Ensure storage service is initialized
+      await _storageService.init();
+
+      // Try to load from storage
+      _habits = _storageService.getAllHabits();
+
+      // If no habits found in storage, initialize with default habits
+      if (_habits.isEmpty) {
+        _initializeDefaultHabits();
+        // Save default habits to storage
+        for (var habit in _habits) {
+          await _storageService.addHabit(habit);
+        }
+      }
+
       emit(HabitLoaded(_habits));
     } catch (e) {
       emit(HabitError('Failed to load habits: ${e.toString()}'));
@@ -87,9 +41,10 @@ class HabitCubit extends Cubit<HabitState> {
   }
 
   // Add a new habit
-  void addHabit(Habit habit) {
+  Future<void> addHabit(Habit habit) async {
     emit(HabitLoading());
     try {
+      await _storageService.addHabit(habit);
       _habits.add(habit);
       emit(HabitLoaded(_habits));
       emit(HabitAdded(habit));
@@ -99,9 +54,10 @@ class HabitCubit extends Cubit<HabitState> {
   }
 
   // Update an existing habit
-  void updateHabit(Habit updatedHabit) {
+  Future<void> updateHabit(Habit updatedHabit) async {
     emit(HabitLoading());
     try {
+      await _storageService.updateHabit(updatedHabit);
       final index = _habits.indexWhere((h) => h.id == updatedHabit.id);
       if (index != -1) {
         _habits[index] = updatedHabit;
@@ -112,23 +68,34 @@ class HabitCubit extends Cubit<HabitState> {
       }
     } catch (e) {
       emit(HabitError('Failed to update habit: ${e.toString()}'));
+      // Re-initialize storage if box was closed
+      if (e.toString().contains('Box has already been closed')) {
+        await _storageService.init();
+        emit(HabitLoaded(_habits));
+      }
     }
   }
 
   // Delete a habit by ID
-  void deleteHabit(String habitId) {
+  Future<void> deleteHabit(String habitId) async {
     emit(HabitLoading());
     try {
+      await _storageService.deleteHabit(habitId);
       _habits.removeWhere((h) => h.id == habitId);
       emit(HabitLoaded(_habits));
       emit(HabitDeleted(habitId));
     } catch (e) {
       emit(HabitError('Failed to delete habit: ${e.toString()}'));
+      // Re-initialize storage if box was closed
+      if (e.toString().contains('Box has already been closed')) {
+        await _storageService.init();
+        emit(HabitLoaded(_habits));
+      }
     }
   }
 
   // Toggle habit completion for a specific day
-  void toggleHabitCompletion(String habitId, int dayIndex) {
+  Future<void> toggleHabitCompletion(String habitId, int dayIndex) async {
     try {
       final index = _habits.indexWhere((h) => h.id == habitId);
       if (index != -1 && dayIndex < _habits[index].completionStatus.length) {
@@ -137,33 +104,55 @@ class HabitCubit extends Cubit<HabitState> {
         newStatus[dayIndex] = !newStatus[dayIndex];
 
         final updatedHabit = habit.copyWith(completionStatus: newStatus);
-        _habits[index] = updatedHabit;
-
-        emit(HabitLoaded(_habits));
-        emit(HabitUpdated(updatedHabit));
+        await updateHabit(updatedHabit);
       }
     } catch (e) {
       emit(HabitError('Failed to toggle completion: ${e.toString()}'));
+      // Re-initialize storage if box was closed
+      if (e.toString().contains('Box has already been closed')) {
+        await _storageService.init();
+      }
     }
   }
 
   // Update quantitative habit progress
-  void updateQuantitativeProgress(String habitId, double newValue) {
+  Future<void> updateQuantitativeProgress(
+    String habitId,
+    double newValue,
+  ) async {
     try {
-      final index = _habits.indexWhere((h) => h.id == habitId);
+      // First get a copy of the current state to avoid losing habits
+      final currentHabits = _habits;
+
+      // Find the habit to update
+      final index = currentHabits.indexWhere((h) => h.id == habitId);
       if (index != -1) {
-        final habit = _habits[index];
+        final habit = currentHabits[index];
         if (habit.isQuantitative) {
           final clampedValue = newValue.clamp(0.0, double.infinity);
-          final updatedHabit = habit.copyWith(currentValue: clampedValue);
-          _habits[index] = updatedHabit;
 
-          emit(HabitLoaded(_habits));
-          emit(HabitUpdated(updatedHabit));
+          // Create updated habit with new value
+          final updatedHabit = habit.copyWith(currentValue: clampedValue);
+
+          // Update local list first before calling storage
+          currentHabits[index] = updatedHabit;
+          _habits = currentHabits;
+
+          // Emit loaded state immediately to ensure UI updates
+          emit(HabitLoaded(List.from(_habits)));
+
+          // Then update storage (and handle any storage errors)
+          await _storageService.updateHabit(updatedHabit);
         }
       }
     } catch (e) {
       emit(HabitError('Failed to update progress: ${e.toString()}'));
+      // Re-initialize storage if box was closed
+      if (e.toString().contains('Box has already been closed')) {
+        await _storageService.init();
+        // Make sure to emit the current habits again after re-initializing
+        emit(HabitLoaded(_habits));
+      }
     }
   }
 
@@ -174,5 +163,27 @@ class HabitCubit extends Cubit<HabitState> {
     } catch (e) {
       return null;
     }
+  }
+
+  // Clear all habits
+  Future<void> clearAllHabits() async {
+    emit(HabitLoading());
+    try {
+      await _storageService.clearAllHabits();
+      _habits = [];
+      emit(HabitLoaded(_habits));
+    } catch (e) {
+      emit(HabitError('Failed to clear habits: ${e.toString()}'));
+      // Re-initialize storage if box was closed
+      if (e.toString().contains('Box has already been closed')) {
+        await _storageService.init();
+        emit(HabitLoaded(_habits));
+      }
+    }
+  }
+
+  // Initialize default habits
+  void _initializeDefaultHabits() {
+    _habits = []; // Empty list instead of predefined default habits
   }
 }

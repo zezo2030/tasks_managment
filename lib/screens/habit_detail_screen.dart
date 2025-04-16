@@ -157,7 +157,10 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context, _habit),
+            onTap: () {
+              context.read<HabitCubit>().loadHabits();
+              Navigator.pop(context);
+            },
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -319,7 +322,8 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
             ),
             Container(
               height: 12,
-              width: MediaQuery.of(context).size.width * _habit.progress - 48,
+              width: (MediaQuery.of(context).size.width * _habit.progress - 48)
+                  .clamp(0, double.infinity),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_habit.color, _habit.color.withOpacity(0.7)],
@@ -385,10 +389,10 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
             ),
             Container(
               height: 12,
-              width:
-                  MediaQuery.of(context).size.width *
-                      _habit.quantitativeProgress -
-                  48,
+              width: (MediaQuery.of(context).size.width *
+                          _habit.quantitativeProgress -
+                      48)
+                  .clamp(0, double.infinity),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_habit.color, _habit.color.withOpacity(0.7)],
