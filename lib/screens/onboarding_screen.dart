@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/core/image_placeholder.dart';
+import 'package:tasks_managment/core/navigation_helper.dart';
 import 'package:tasks_managment/screens/home_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -184,26 +185,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _navigateToHome() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder:
-            (context, animation, secondaryAnimation) => const HomeScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          var begin = const Offset(1.0, 0.0);
-          var end = Offset.zero;
-          var curve = Curves.easeInOut;
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
+    NavigationHelper.navigateToHome(context);
   }
 
   Widget _buildPage(BuildContext context, OnboardingData data, int index) {

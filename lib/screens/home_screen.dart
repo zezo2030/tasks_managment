@@ -7,6 +7,7 @@ import 'package:tasks_managment/screens/day_view_screen.dart';
 import 'package:tasks_managment/screens/habit_tracker_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
+import 'package:tasks_managment/main.dart'; // Import for getHabitCubit function
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -104,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen>
     _animationController.forward();
 
     // Fetch habits when screen initializes
-    context.read<HabitCubit>().loadHabits();
+    getHabitCubit().loadHabits();
   }
 
   @override
@@ -298,10 +299,14 @@ class _HomeScreenState extends State<HomeScreen>
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 120,
-                      child: BlocBuilder<HabitCubit, HabitState>(
-                        builder: (context, state) {
-                          if (state is HabitLoaded) {
-                            final habits = state.habits;
+                      child: BlocProvider.value(
+                        value: getHabitCubit(),
+                        child: BlocBuilder<HabitCubit, HabitState>(
+                          builder: (context, state) {
+                            List<Habit> habits = [];
+                            if (state is HabitLoaded) {
+                              habits = state.habits;
+                            }
                             return ListView(
                               scrollDirection: Axis.horizontal,
                               physics: const BouncingScrollPhysics(),
@@ -374,11 +379,8 @@ class _HomeScreenState extends State<HomeScreen>
                                           )
                                           .toList(),
                             );
-                          }
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        },
+                          },
+                        ),
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -926,6 +928,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildHabitCard(Habit habit) {
     final weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    // Get today's index in the week (0 = Monday, 6 = Sunday)
+    final todayIndex = DateTime.now().weekday - 1;
 
     return Container(
       width: 200,
@@ -980,10 +984,14 @@ class _HomeScreenState extends State<HomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(7, (index) {
+              // Check if the habit has completion data for this day
               final isCompleted =
                   index < habit.completionStatus.length
                       ? habit.completionStatus[index]
                       : false;
+
+              // Highlight today's day
+              final isToday = index == todayIndex;
 
               return Column(
                 children: [
@@ -991,36 +999,45 @@ class _HomeScreenState extends State<HomeScreen>
                     weekDays[index],
                     style: TextStyle(
                       fontSize: 8,
-                      color: AppColors.textLight,
-                      fontWeight: FontWeight.w500,
+                      color: isToday ? habit.color : AppColors.textLight,
+                      fontWeight: isToday ? FontWeight.w600 : FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color:
-                          isCompleted
-                              ? habit.color
-                              : habit.color.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(
+                  GestureDetector(
+                    onTap: () {
+                      if (index < habit.completionStatus.length) {
+                        getHabitCubit().toggleHabitCompletion(habit.id, index);
+                      }
+                    },
+                    child: Container(
+                      width: isToday ? 16 : 14,
+                      height: isToday ? 16 : 14,
+                      decoration: BoxDecoration(
                         color:
                             isCompleted
-                                ? Colors.transparent
-                                : habit.color.withOpacity(0.3),
-                        width: 1,
+                                ? habit.color
+                                : habit.color.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              isToday
+                                  ? habit.color
+                                  : (isCompleted
+                                      ? Colors.transparent
+                                      : habit.color.withOpacity(0.3)),
+                          width: isToday ? 1.5 : 1,
+                        ),
                       ),
+                      child:
+                          isCompleted
+                              ? Icon(
+                                Icons.check,
+                                size: isToday ? 10 : 8,
+                                color: Colors.white,
+                              )
+                              : null,
                     ),
-                    child:
-                        isCompleted
-                            ? const Icon(
-                              Icons.check,
-                              size: 8,
-                              color: Colors.white,
-                            )
-                            : null,
                   ),
                 ],
               );

@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/models/habit_model.dart';
+import 'package:tasks_managment/screens/habit_tracker_screen.dart';
+import 'package:tasks_managment/main.dart'; // Import for getHabitCubit function
 
 class CreateHabitScreen extends StatefulWidget {
   const CreateHabitScreen({super.key});
@@ -60,106 +62,114 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => HabitCubit(),
-      child: BlocListener<HabitCubit, HabitState>(
+    return BlocProvider.value(
+      value: getHabitCubit(),
+      child: BlocConsumer<HabitCubit, HabitState>(
         listener: (context, state) {
           if (state is HabitAdded) {
-            Navigator.pop(context, state.habit);
+            getHabitCubit().loadHabits();
+            Navigator.pop(context);
+          }
+          if (state is HabitError) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
-        child: Scaffold(
-          backgroundColor: AppColors.backgroundColor,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Create New Habit',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textDark,
-                              letterSpacing: -0.5,
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context),
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Create New Habit',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                                letterSpacing: -0.5,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Build a new habit with daily tracking',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppColors.textLight,
+                            const SizedBox(height: 8),
+                            Text(
+                              'Build a new habit with daily tracking',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: AppColors.textLight,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 30),
-                          _buildInputField(
-                            title: 'Habit Name',
-                            controller: _titleController,
-                            hintText: 'e.g. Morning Meditation',
-                          ),
-                          const SizedBox(height: 20),
-                          _buildInputField(
-                            title: 'Description',
-                            controller: _descriptionController,
-                            hintText:
-                                'e.g. Meditate for 10 minutes every morning',
-                            maxLines: 3,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildQuantitativeToggle(),
-                          if (_isQuantitative) ...[
+                            const SizedBox(height: 30),
+                            _buildInputField(
+                              title: 'Habit Name',
+                              controller: _titleController,
+                              hintText: 'e.g. Morning Meditation',
+                            ),
                             const SizedBox(height: 20),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: _buildInputField(
-                                    title: 'Target Value',
-                                    controller: _targetValueController,
-                                    hintText: 'e.g. 8, 5000',
-                                    keyboardType: TextInputType.number,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  flex: 1,
-                                  child: _buildInputField(
-                                    title: 'Unit',
-                                    controller: _unitController,
-                                    hintText: 'e.g. cups, steps',
-                                  ),
-                                ),
-                              ],
+                            _buildInputField(
+                              title: 'Description',
+                              controller: _descriptionController,
+                              hintText:
+                                  'e.g. Meditate for 10 minutes every morning',
+                              maxLines: 3,
                             ),
+                            const SizedBox(height: 20),
+                            _buildQuantitativeToggle(),
+                            if (_isQuantitative) ...[
+                              const SizedBox(height: 20),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: _buildInputField(
+                                      title: 'Target Value',
+                                      controller: _targetValueController,
+                                      hintText: 'e.g. 8, 5000',
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    flex: 1,
+                                    child: _buildInputField(
+                                      title: 'Unit',
+                                      controller: _unitController,
+                                      hintText: 'e.g. cups, steps',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 20),
+                            _buildFrequencySelector(),
+                            const SizedBox(height: 30),
+                            _buildIconSelector(),
+                            const SizedBox(height: 30),
+                            _buildColorSelector(),
+                            const SizedBox(height: 40),
+                            _buildCreateButton(context),
                           ],
-                          const SizedBox(height: 20),
-                          _buildFrequencySelector(),
-                          const SizedBox(height: 30),
-                          _buildIconSelector(),
-                          const SizedBox(height: 30),
-                          _buildColorSelector(),
-                          const SizedBox(height: 40),
-                          _buildCreateButton(context),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -530,31 +540,7 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            double targetValue = 0;
-            if (_isQuantitative && _targetValueController.text.isNotEmpty) {
-              targetValue = double.parse(_targetValueController.text);
-            }
-
-            final newHabit = Habit(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              title: _titleController.text,
-              description: _descriptionController.text,
-              icon: _selectedIcon,
-              color: _selectedColor,
-              frequency: _selectedFrequency,
-              completionStatus: List.generate(7, (index) => false),
-              createdAt: DateTime.now(),
-              isQuantitative: _isQuantitative,
-              targetValue: targetValue,
-              currentValue: 0,
-              unit: _isQuantitative ? _unitController.text : '',
-            );
-
-            context.read<HabitCubit>().addHabit(newHabit);
-          }
-        },
+        onPressed: _saveHabit,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
           backgroundColor: _selectedColor,
@@ -574,5 +560,36 @@ class _CreateHabitScreenState extends State<CreateHabitScreen> {
         ),
       ),
     );
+  }
+
+  void _saveHabit() {
+    if (_formKey.currentState!.validate()) {
+      double targetValue = 0;
+      if (_isQuantitative && _targetValueController.text.isNotEmpty) {
+        targetValue = double.parse(_targetValueController.text);
+      }
+
+      final newHabit = Habit(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text,
+        description: _descriptionController.text,
+        icon: _selectedIcon,
+        color: _selectedColor,
+        frequency: _selectedFrequency,
+        completionStatus: List.generate(7, (index) => false),
+        createdAt: DateTime.now(),
+        isQuantitative: _isQuantitative,
+        targetValue: targetValue,
+        currentValue: 0,
+        unit: _isQuantitative ? _unitController.text : '',
+      );
+
+      getHabitCubit().addHabit(newHabit);
+      getHabitCubit().loadHabits();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HabitTrackerScreen()),
+      );
+    }
   }
 }

@@ -5,6 +5,7 @@ import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/models/habit_model.dart';
 import 'package:tasks_managment/screens/create_habit_screen.dart';
 import 'package:tasks_managment/screens/habit_detail_screen.dart';
+import 'package:tasks_managment/main.dart'; // Import to access getHabitCubit function
 
 class HabitTrackerScreen extends StatefulWidget {
   const HabitTrackerScreen({super.key});
@@ -41,21 +42,19 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => HabitCubit()..loadHabits(),
+    // Refresh habits when screen is shown
+    getHabitCubit().loadHabits();
+
+    return BlocProvider.value(
+      value: getHabitCubit(),
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
         body: SafeArea(
-          child: BlocBuilder<HabitCubit, HabitState>(
+          child: BlocConsumer<HabitCubit, HabitState>(
+            listener: (context, state) {
+              // React to state changes if needed
+            },
             builder: (context, state) {
-              if (state is HabitLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (state is HabitError) {
-                return Center(child: Text('Error: ${state.message}'));
-              }
-
               List<Habit> habits = [];
               if (state is HabitLoaded) {
                 habits = state.habits;
@@ -283,7 +282,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
     );
 
     if (newHabit != null) {
-      context.read<HabitCubit>().addHabit(newHabit);
+      getHabitCubit().addHabit(newHabit);
     }
   }
 
@@ -313,10 +312,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
 
     // If we received an updated habit back, update it in the cubit
     if (updatedHabit != null && updatedHabit is Habit) {
-      context.read<HabitCubit>().updateHabit(updatedHabit);
+      getHabitCubit().updateHabit(updatedHabit);
     } else {
       // If no habit was returned, reload habits to ensure they're displayed
-      context.read<HabitCubit>().loadHabits();
+      getHabitCubit().loadHabits();
     }
   }
 
@@ -586,7 +585,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
                       0.0,
                       double.infinity,
                     );
-                    context.read<HabitCubit>().updateQuantitativeProgress(
+                    getHabitCubit().updateQuantitativeProgress(
                       habit.id,
                       newValue,
                     );
@@ -625,7 +624,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
                   icon: Icons.add_circle_outline,
                   onTap: () {
                     final newValue = habit.currentValue + 1;
-                    context.read<HabitCubit>().updateQuantitativeProgress(
+                    getHabitCubit().updateQuantitativeProgress(
                       habit.id,
                       newValue,
                     );
@@ -724,7 +723,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen>
                       GestureDetector(
                         onTap: () {
                           if (index < habit.completionStatus.length) {
-                            context.read<HabitCubit>().toggleHabitCompletion(
+                            getHabitCubit().toggleHabitCompletion(
                               habit.id,
                               index,
                             );
