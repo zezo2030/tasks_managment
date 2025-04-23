@@ -9,10 +9,10 @@ class CompletionButton extends StatefulWidget {
   final Function() onCompleted;
 
   const CompletionButton({
-    Key? key,
+    super.key,
     required this.habit,
     required this.onCompleted,
-  }) : super(key: key);
+  });
 
   @override
   State<CompletionButton> createState() => _CompletionButtonState();
@@ -82,6 +82,48 @@ class _CompletionButtonState extends State<CompletionButton>
                   // Get today's weekday index (0-6)
                   final todayIndex = DateTime.now().weekday - 1; // 0 = Monday
 
+                  // Check if we're trying to complete today's habit
+                  // If the index is not for today, show error message and return
+                  if (todayIndex != widget.habit.completionStatus.length - 1) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'لا يمكن تعديل العادات السابقة، فقط اليوم متاح',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.deepPurple.shade400,
+                        duration: const Duration(seconds: 3),
+                        behavior: SnackBarBehavior.floating,
+                        elevation: 4,
+                        margin: EdgeInsets.all(12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
                   // Check if completion status has enough entries
                   final bool isCompleted =
                       todayIndex < widget.habit.completionStatus.length
@@ -141,7 +183,7 @@ class _CompletionButtonState extends State<CompletionButton>
                                 .completionStatus[DateTime.now().weekday - 1]
                         ? Colors.green
                         : widget.habit.color,
-                elevation: 8,
+                elevation: 0,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [

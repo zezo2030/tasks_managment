@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 import 'package:tasks_managment/core/constants.dart';
+import 'package:tasks_managment/core/router.dart';
 import 'package:tasks_managment/models/habit_model.dart';
 import 'package:tasks_managment/main.dart'; // Import main.dart to access the global habitCubit
 import 'package:tasks_managment/widgets/habit_detail/header_widget.dart';
@@ -11,7 +13,6 @@ import 'package:tasks_managment/widgets/habit_detail/monthly_calendar_widget.dar
 import 'package:tasks_managment/widgets/habit_detail/statistics_widget.dart';
 import 'package:tasks_managment/widgets/habit_detail/streak_widget.dart';
 import 'package:tasks_managment/widgets/habit_detail/confetti_widget.dart';
-import 'package:tasks_managment/widgets/habit_detail/completion_button.dart';
 
 class HabitDetailScreen extends StatefulWidget {
   final Habit habit;
@@ -70,15 +71,31 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Use the global habitCubit and update it with the current habit
-    getHabitCubit().updateHabit(_habit);
-
+    // نستخدم BlocProvider.of بدلاً من getHabitCubit مباشرة
+    // ولا نحدث العادة هنا لتجنب دورة التحديث
     return BlocProvider.value(
       value: getHabitCubit(),
       child: BlocConsumer<HabitCubit, HabitState>(
         listener: (context, state) {
-          if (state is HabitUpdated) {
-            _habit = state.habit;
+          if (state is HabitUpdated && state.habit.id == _habit.id) {
+            setState(() {
+              _habit = state.habit;
+            });
+          } else if (state is HabitLoaded) {
+            final loadedHabit = state.habits.firstWhere(
+              (h) => h.id == _habit.id,
+              orElse: () => _habit,
+            );
+            setState(() {
+              _habit = loadedHabit;
+            });
+          } else if (state is HabitError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: ${state.message}'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
         builder: (context, state) {
@@ -94,9 +111,9 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
                       children: [
                         HabitDetailHeader(
                           habitColor: _habit.color,
+                          habit: _habit,
                           onBack: () {
-                            context.read<HabitCubit>().loadHabits();
-                            Navigator.pop(context);
+                            context.pushReplacement(AppRoutes.habitTracker);
                           },
                         ),
                         Padding(
@@ -131,13 +148,6 @@ class _HabitDetailScreenState extends State<HabitDetailScreen>
                 ],
               ),
             ),
-            floatingActionButton:
-                _habit.isQuantitative
-                    ? null
-                    : CompletionButton(
-                      habit: _habit,
-                      onCompleted: _showConfettiAnimation,
-                    ),
           );
         },
       ),

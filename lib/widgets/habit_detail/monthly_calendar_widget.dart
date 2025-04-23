@@ -6,8 +6,7 @@ import 'package:tasks_managment/models/habit_model.dart';
 class MonthlyCalendarWidget extends StatefulWidget {
   final Habit habit;
 
-  const MonthlyCalendarWidget({Key? key, required this.habit})
-    : super(key: key);
+  const MonthlyCalendarWidget({super.key, required this.habit});
 
   @override
   State<MonthlyCalendarWidget> createState() => _MonthlyCalendarWidgetState();
@@ -138,6 +137,10 @@ class _MonthlyCalendarWidgetState extends State<MonthlyCalendarWidget> {
                       day.month == _today.month &&
                       day.year == _today.year;
 
+                  // Check if this is a past, today, or future day
+                  final isPastDay = day.isBefore(_today) && !isToday;
+                  final isFutureDay = day.isAfter(_today) && !isToday;
+
                   // Check habit completion for this day
                   // Get the day's index in week (0-6) from start of habit tracking
                   final daysSinceStart =
@@ -163,6 +166,8 @@ class _MonthlyCalendarWidgetState extends State<MonthlyCalendarWidget> {
                               ? widget.habit.color.withOpacity(0.2)
                               : isCompleted
                               ? widget.habit.color.withOpacity(0.1)
+                              : isFutureDay
+                              ? Colors.grey.withOpacity(0.05)
                               : Colors.transparent,
                       shape: BoxShape.circle,
                       border:
@@ -170,28 +175,68 @@ class _MonthlyCalendarWidgetState extends State<MonthlyCalendarWidget> {
                               ? Border.all(color: widget.habit.color, width: 2)
                               : null,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Text(
-                          '${day.day}',
-                          style: TextStyle(
-                            color:
-                                isToday
-                                    ? widget.habit.color
-                                    : AppColors.textDark,
-                            fontWeight:
-                                isToday ? FontWeight.bold : FontWeight.normal,
-                          ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${day.day}',
+                              style: TextStyle(
+                                color:
+                                    isToday
+                                        ? widget.habit.color
+                                        : isFutureDay
+                                        ? Colors.grey
+                                        : AppColors.textDark,
+                                fontWeight:
+                                    isToday
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                              ),
+                            ),
+                            if (isCompleted && !isToday)
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: widget.habit.color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
                         ),
-                        if (isCompleted && !isToday)
-                          Container(
-                            margin: const EdgeInsets.only(top: 2),
-                            width: 5,
-                            height: 5,
-                            decoration: BoxDecoration(
+                        // Add icons based on day status
+                        if (isPastDay && !isCompleted)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Icon(
+                              Icons.lock,
+                              size: 10,
+                              color: widget.habit.color.withOpacity(0.7),
+                            ),
+                          ),
+                        if (isToday && !isCompleted)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Icon(
+                              Icons.lock,
+                              size: 10,
                               color: widget.habit.color,
-                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        if (isFutureDay)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Icon(
+                              Icons.access_time,
+                              size: 10,
+                              color: Colors.grey.withOpacity(0.8),
                             ),
                           ),
                       ],

@@ -50,16 +50,24 @@ class HabitCubit extends Cubit<HabitState> {
 
   // Load all habits and emit HabitLoaded state
   Future<void> loadHabits() async {
-    emit(HabitLoading());
+    // حفظ العادات الحالية مؤقتاً
+    final currentHabits = List<Habit>.from(_habits);
+
     try {
       // Ensure storage service is initialized
       await _storageService.init();
 
       // Try to load from storage
-      _habits = _storageService.getAllHabits();
+      final loadedHabits = _storageService.getAllHabits();
 
-      // If no habits found in storage, initialize with default habits
-      if (_habits.isEmpty) {
+      // If habits loaded successfully, update the list
+      if (loadedHabits.isNotEmpty) {
+        _habits = loadedHabits;
+      } else if (currentHabits.isNotEmpty) {
+        // إذا كانت العادات المحملة فارغة ولكن لدينا عادات حالية، نحتفظ بها
+        _habits = currentHabits;
+      } else {
+        // If no habits found anywhere, initialize with default habits
         _initializeDefaultHabits();
         // Save default habits to storage
         for (var habit in _habits) {
@@ -70,6 +78,11 @@ class HabitCubit extends Cubit<HabitState> {
       emit(HabitLoaded(_habits));
       print("Habits loaded: ${_habits.length}");
     } catch (e) {
+      // في حالة حدوث خطأ، نعيد العادات القديمة إن وجدت
+      if (currentHabits.isNotEmpty) {
+        _habits = currentHabits;
+        emit(HabitLoaded(_habits));
+      }
       emit(HabitError('Failed to load habits: ${e.toString()}'));
     }
   }
@@ -116,7 +129,19 @@ class HabitCubit extends Cubit<HabitState> {
 
           // Add new day with uncompleted status (today)
           final updatedStatus = [...completionStatus, false];
-          final updatedHabit = habit.copyWith(completionStatus: updatedStatus);
+
+          // Reset currentValue to 0 for quantitative habits
+          double newCurrentValue = habit.currentValue;
+          if (habit.isQuantitative) {
+            newCurrentValue = 0.0;
+            anyChanges = true;
+          }
+
+          final updatedHabit = habit.copyWith(
+            completionStatus: updatedStatus,
+            currentValue: newCurrentValue,
+          );
+
           updatedHabits.add(updatedHabit);
 
           // Save the updated habit to storage
@@ -213,6 +238,20 @@ class HabitCubit extends Cubit<HabitState> {
       final index = _habits.indexWhere((h) => h.id == habitId);
       if (index != -1 && dayIndex < _habits[index].completionStatus.length) {
         final habit = _habits[index];
+
+        // Get today's index (0 = Monday, 6 = Sunday)
+        final todayIndex = DateTime.now().weekday - 1;
+
+        // Only allow toggling if it's today's habit
+        if (dayIndex != todayIndex) {
+          emit(
+            HabitError(
+              'لا يمكن تعديل العادات السابقة أو القادمة، فقط اليوم الحالي متاح',
+            ),
+          );
+          return;
+        }
+
         final newStatus = List<bool>.from(habit.completionStatus);
         newStatus[dayIndex] = !newStatus[dayIndex];
 
@@ -235,7 +274,7 @@ class HabitCubit extends Cubit<HabitState> {
   ) async {
     try {
       // First get a copy of the current state to avoid losing habits
-      final currentHabits = _habits;
+      final currentHabits = List<Habit>.from(_habits);
 
       // Find the habit to update
       final index = currentHabits.indexWhere((h) => h.id == habitId);
@@ -247,12 +286,52 @@ class HabitCubit extends Cubit<HabitState> {
           // Create updated habit with new value
           final updatedHabit = habit.copyWith(currentValue: clampedValue);
 
+          // Get today's index in the week (0 = Monday, 6 = Sunday)
+          final todayIndex = DateTime.now().weekday - 1;
+
+          // Check if today's index is within the completion status array
+          if (todayIndex < updatedHabit.completionStatus.length) {
+            // Create a copy of the completion status array
+            final newCompletionStatus = List<bool>.from(
+              updatedHabit.completionStatus,
+            );
+
+            // If the current value reaches or exceeds the target value, mark today's habit as completed
+            if (clampedValue >= habit.targetValue && habit.targetValue > 0) {
+              newCompletionStatus[todayIndex] = true;
+            }
+            // If the current value falls below the target value, unmark today's habit
+            else if (clampedValue < habit.targetValue &&
+                habit.targetValue > 0) {
+              newCompletionStatus[todayIndex] = false;
+            }
+
+            // Update the habit with the new completion status
+            final completeUpdatedHabit = updatedHabit.copyWith(
+              completionStatus: newCompletionStatus,
+            );
+
+            // Use this updated habit with completion status for further updates
+            currentHabits[index] = completeUpdatedHabit;
+            _habits = List<Habit>.from(currentHabits);
+
+            // Emit loaded state immediately to ensure UI updates
+            emit(HabitLoaded(List<Habit>.from(_habits)));
+
+            // Then update storage
+            await _storageService.updateHabit(completeUpdatedHabit);
+            return;
+          }
+
+          // If today's index is not in completion status range, process as normal
           // Update local list first before calling storage
           currentHabits[index] = updatedHabit;
-          _habits = currentHabits;
+          _habits = List<Habit>.from(
+            currentHabits,
+          ); // Create a new reference for _habits
 
           // Emit loaded state immediately to ensure UI updates
-          emit(HabitLoaded(List.from(_habits)));
+          emit(HabitLoaded(List<Habit>.from(_habits)));
 
           // Then update storage (and handle any storage errors)
           await _storageService.updateHabit(updatedHabit);

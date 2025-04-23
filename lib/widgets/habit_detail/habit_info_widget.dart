@@ -7,10 +7,10 @@ class HabitInfoWidget extends StatelessWidget {
   final Animation<double> fadeAnimation;
 
   const HabitInfoWidget({
-    Key? key,
+    super.key,
     required this.habit,
     required this.fadeAnimation,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

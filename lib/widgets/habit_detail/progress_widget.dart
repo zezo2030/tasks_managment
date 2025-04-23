@@ -8,7 +8,7 @@ import 'package:tasks_managment/widgets/habit_detail/weekly_progress_widget.dart
 class HabitProgressWidget extends StatelessWidget {
   final Habit habit;
 
-  const HabitProgressWidget({Key? key, required this.habit}) : super(key: key);
+  const HabitProgressWidget({super.key, required this.habit});
 
   @override
   Widget build(BuildContext context) {
@@ -135,17 +135,18 @@ class HabitProgressWidget extends StatelessWidget {
                         0.0,
                         double.infinity,
                       );
-                      context.read<HabitCubit>().updateQuantitativeProgress(
-                        habit.id,
-                        newValue,
-                      );
+                      final habitCubit = BlocProvider.of<HabitCubit>(context);
+                      final habitId = habit.id;
+                      habitCubit.updateQuantitativeProgress(habitId, newValue);
                     },
                   ),
                   _buildQuantityButton(
                     icon: Icons.add,
                     onTap: () {
-                      context.read<HabitCubit>().updateQuantitativeProgress(
-                        habit.id,
+                      final habitCubit = BlocProvider.of<HabitCubit>(context);
+                      final habitId = habit.id;
+                      habitCubit.updateQuantitativeProgress(
+                        habitId,
                         habit.currentValue + 1,
                       );
                     },

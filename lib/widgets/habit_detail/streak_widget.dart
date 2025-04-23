@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:intl/intl.dart';
 import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/models/habit_model.dart';
 
 class StreakWidget extends StatefulWidget {
   final Habit habit;
 
-  const StreakWidget({Key? key, required this.habit}) : super(key: key);
+  const StreakWidget({super.key, required this.habit});
 
   @override
   State<StreakWidget> createState() => _StreakWidgetState();
@@ -14,10 +15,89 @@ class StreakWidget extends StatefulWidget {
 
 class _StreakWidgetState extends State<StreakWidget>
     with SingleTickerProviderStateMixin {
-  late final DateTime _today = DateTime.now();
-  // Mock data for demonstration
-  final int currentStreak = 5;
-  final int bestStreak = 21;
+  late int currentStreak = 0;
+  late int bestStreak = 0;
+  late List<DateTime> last10Days;
+  late List<bool> last10DaysStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeStreakData();
+  }
+
+  void _initializeStreakData() {
+    try {
+      // Generate dates for the last 10 days
+      last10Days = List.generate(
+        10,
+        (index) => DateTime.now().subtract(Duration(days: 9 - index)),
+      );
+
+      // Default all days to false (not completed)
+      last10DaysStatus = List.generate(10, (_) => false);
+
+      // Safety check for null or empty completionStatus
+      if (widget.habit.completionStatus.isEmpty) {
+        currentStreak = 0;
+        bestStreak = 0;
+        return;
+      }
+
+      // Get a safe copy of completion status
+      final List<bool> completionStatus = List<bool>.from(
+        widget.habit.completionStatus,
+      );
+
+      // Calculate current streak (most recent consecutive completed days)
+      for (int i = completionStatus.length - 1; i >= 0; i--) {
+        if (completionStatus[i]) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+
+      // Calculate best streak
+      int tempStreak = 0;
+      for (int i = 0; i < completionStatus.length; i++) {
+        if (completionStatus[i]) {
+          tempStreak++;
+        } else {
+          bestStreak = math.max(bestStreak, tempStreak);
+          tempStreak = 0;
+        }
+      }
+      // Check if the current streak is the best streak
+      bestStreak = math.max(bestStreak, tempStreak);
+
+      // Fill in last10DaysStatus with actual data if available
+      // Assuming completionStatus is ordered from oldest to newest
+      final int start =
+          completionStatus.length > 10 ? completionStatus.length - 10 : 0;
+
+      for (int i = 0; i < 10; i++) {
+        final int index = start + i;
+        if (index < completionStatus.length) {
+          // Map completion status to our 10-day display
+          last10DaysStatus[i] = completionStatus[index];
+        }
+      }
+    } catch (e) {
+      // Fallback to defaults if any error occurs
+      currentStreak = 0;
+      bestStreak = 0;
+      last10Days = List.generate(
+        10,
+        (index) => DateTime.now().subtract(Duration(days: 9 - index)),
+      );
+      last10DaysStatus = List.generate(10, (_) => false);
+    }
+  }
+
+  String _formatDay(DateTime date) {
+    return DateFormat('d').format(date);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +191,8 @@ class _StreakWidgetState extends State<StreakWidget>
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: List.generate(10, (index) {
-                    final isActive = index < currentStreak;
+                    final isActive = last10DaysStatus[index];
+                    // Create dynamic bar heights based on pattern but maintain completion status
                     final barHeight = 30 + (index % 3) * 10.0;
 
                     return TweenAnimationBuilder(
@@ -158,7 +239,7 @@ class _StreakWidgetState extends State<StreakWidget>
                                         ? AppColors.textDark
                                         : AppColors.textLight,
                               ),
-                              child: Text('${_today.day - 9 + index}'),
+                              child: Text(_formatDay(last10Days[index])),
                             ),
                           ],
                         );
@@ -214,7 +295,9 @@ class _StreakWidgetState extends State<StreakWidget>
                 ),
               const SizedBox(height: 20),
               Text(
-                'Keep going! You\'re on a $currentStreak-day streak',
+                currentStreak > 0
+                    ? 'Keep going! You\'re on a $currentStreak-day streak'
+                    : 'Start your streak today!',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -226,18 +309,22 @@ class _StreakWidgetState extends State<StreakWidget>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Your best streak is $bestStreak days',
+                    bestStreak > 0
+                        ? 'Your best streak is $bestStreak days'
+                        : 'Complete today to start your streak!',
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textLight,
                     ),
                   ),
-                  const SizedBox(width: 5),
-                  const Icon(
-                    Icons.workspace_premium_rounded,
-                    size: 16,
-                    color: Colors.amber,
-                  ),
+                  if (bestStreak > 0) ...[
+                    const SizedBox(width: 5),
+                    const Icon(
+                      Icons.workspace_premium_rounded,
+                      size: 16,
+                      color: Colors.amber,
+                    ),
+                  ],
                 ],
               ),
             ],

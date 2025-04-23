@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tasks_managment/core/constants.dart';
 import 'package:tasks_managment/core/image_placeholder.dart';
 import 'package:tasks_managment/core/navigation_helper.dart';
-import 'package:tasks_managment/screens/home_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});

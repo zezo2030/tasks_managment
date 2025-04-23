@@ -9,6 +9,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 import 'package:tasks_managment/main.dart'; // Import for getHabitCubit function
 
+// Helper class to store habit completion statistics
+class HabitCompletionStats {
+  final int completed;
+  final int total;
+  final double progress;
+
+  HabitCompletionStats({
+    required this.completed,
+    required this.total,
+    required this.progress,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -931,6 +944,12 @@ class _HomeScreenState extends State<HomeScreen>
     // Get today's index in the week (0 = Monday, 6 = Sunday)
     final todayIndex = DateTime.now().weekday - 1;
 
+    // Get correct completion status for today
+    final todayCompleted = _getDayCompletionStatus(habit, todayIndex);
+
+    // Calculate accurate stats
+    final completionStats = _getHabitCompletionStats(habit);
+
     return Container(
       width: 200,
       margin: const EdgeInsets.only(right: 16),
@@ -961,21 +980,63 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Icon(habit.icon, color: habit.color, size: 18),
               ),
               const SizedBox(width: 6),
-              Text(
-                habit.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppColors.textDark,
+              Expanded(
+                child: Text(
+                  habit.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              if (!todayCompleted)
+                Icon(Icons.lock, size: 12, color: Colors.grey.withOpacity(0.7)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
               Text(
-                '${habit.daysCompleted}/${habit.completionStatus.length}',
+                '${(completionStats.progress * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: habit.color,
+                ),
+              ),
+              Text(
+                '${completionStats.completed}/${completionStats.total} days',
                 style: TextStyle(
                   color: AppColors.textLight,
                   fontWeight: FontWeight.w600,
-                  fontSize: 11,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Stack(
+            children: [
+              Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Container(
+                height: 4,
+                width: (200 - 24) * completionStats.progress,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [habit.color, habit.color.withOpacity(0.7)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ],
@@ -984,13 +1045,12 @@ class _HomeScreenState extends State<HomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(7, (index) {
-              // Check if the habit has completion data for this day
-              final isCompleted =
-                  index < habit.completionStatus.length
-                      ? habit.completionStatus[index]
-                      : false;
+              // Determine if this day is completed
+              final isCompleted = _getDayCompletionStatus(habit, index);
 
-              // Highlight today's day
+              // Determine if this day is today, in the past, or in the future
+              final isPastOrToday = index <= todayIndex;
+              final isFutureDay = index > todayIndex;
               final isToday = index == todayIndex;
 
               return Column(
@@ -1006,8 +1066,60 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 2),
                   GestureDetector(
                     onTap: () {
-                      if (index < habit.completionStatus.length) {
-                        getHabitCubit().toggleHabitCompletion(habit.id, index);
+                      if (index == todayIndex) {
+                        // Get the correct index in the completion status array
+                        final actualIndex = _getActualCompletionIndex(
+                          habit,
+                          index,
+                        );
+
+                        // Only toggle if the index is valid
+                        if (actualIndex >= 0 &&
+                            actualIndex < habit.completionStatus.length) {
+                          // Toggle the habit completion using the cubit
+                          getHabitCubit().toggleHabitCompletion(
+                            habit.id,
+                            actualIndex,
+                          );
+                        }
+                      } else {
+                        // Show a snackbar explaining you can only modify today's habit
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'You can only modify today\'s habit',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.deepPurple.shade400,
+                            duration: const Duration(seconds: 3),
+                            behavior: SnackBarBehavior.floating,
+                            elevation: 4,
+                            margin: EdgeInsets.all(12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        );
                       }
                     },
                     child: Container(
@@ -1017,15 +1129,19 @@ class _HomeScreenState extends State<HomeScreen>
                         color:
                             isCompleted
                                 ? habit.color
+                                : isFutureDay
+                                ? Colors.grey.withOpacity(0.1)
                                 : habit.color.withOpacity(0.1),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color:
-                              isToday
+                              isCompleted
+                                  ? Colors.transparent
+                                  : isToday
                                   ? habit.color
-                                  : (isCompleted
-                                      ? Colors.transparent
-                                      : habit.color.withOpacity(0.3)),
+                                  : isFutureDay
+                                  ? Colors.grey.withOpacity(0.3)
+                                  : habit.color.withOpacity(0.3),
                           width: isToday ? 1.5 : 1,
                         ),
                       ),
@@ -1036,6 +1152,21 @@ class _HomeScreenState extends State<HomeScreen>
                                 size: isToday ? 10 : 8,
                                 color: Colors.white,
                               )
+                              : isPastOrToday && !isCompleted
+                              ? Icon(
+                                Icons.lock,
+                                size: isToday ? 10 : 8,
+                                color:
+                                    isToday
+                                        ? habit.color
+                                        : habit.color.withOpacity(0.7),
+                              )
+                              : isFutureDay
+                              ? Icon(
+                                Icons.access_time,
+                                size: 8,
+                                color: Colors.grey.withOpacity(0.7),
+                              )
                               : null,
                     ),
                   ),
@@ -1043,32 +1174,78 @@ class _HomeScreenState extends State<HomeScreen>
               );
             }),
           ),
-          const SizedBox(height: 8),
-          Stack(
-            children: [
-              Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              Container(
-                height: 4,
-                width: (200 * habit.progress - 24).clamp(0, 176),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [habit.color, habit.color.withOpacity(0.7)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
+  }
+
+  // Get accurate habit completion statistics
+  HabitCompletionStats _getHabitCompletionStats(Habit habit) {
+    // Safety check for empty completion status
+    if (habit.completionStatus.isEmpty) {
+      return HabitCompletionStats(completed: 0, total: 0, progress: 0.0);
+    }
+
+    // Get the relevant completion data (last 7 days or all available days)
+    final List<bool> relevantData;
+
+    if (habit.completionStatus.length <= 7) {
+      // If we have 7 or fewer days, use all available data
+      relevantData = habit.completionStatus;
+    } else {
+      // If we have more than 7 days, use only the most recent 7 days
+      final startIndex = habit.completionStatus.length - 7;
+      relevantData = habit.completionStatus.sublist(startIndex);
+    }
+
+    // Count completed days
+    final int completedDays = relevantData.where((day) => day).length;
+
+    // Calculate progress (avoiding division by zero)
+    final double progress =
+        relevantData.isEmpty ? 0.0 : completedDays / relevantData.length;
+
+    return HabitCompletionStats(
+      completed: completedDays,
+      total: relevantData.length,
+      progress: progress,
+    );
+  }
+
+  // Get the actual index in the completion status array for a given visual index
+  int _getActualCompletionIndex(Habit habit, int visualIndex) {
+    // If the habit's completion status is shorter than 7 days, use the visual index directly
+    if (habit.completionStatus.length <= 7) {
+      return visualIndex;
+    }
+
+    // Otherwise, calculate the correct index in the longer history
+    // We want to display the most recent 7 days, so we offset from the end
+    final int startIdx = habit.completionStatus.length - 7;
+    return startIdx + visualIndex;
+  }
+
+  // Get completion status for a specific day in the visual week display
+  bool _getDayCompletionStatus(Habit habit, int dayIndex) {
+    // If there's no completion data or the habit is empty
+    if (habit.completionStatus.isEmpty) {
+      return false;
+    }
+
+    // If the requested day is outside our week display range
+    if (dayIndex < 0 || dayIndex >= 7) {
+      return false;
+    }
+
+    // Get the actual index in the completion status array
+    final int actualIndex = _getActualCompletionIndex(habit, dayIndex);
+
+    // Make sure the index is within the bounds of the completion status array
+    if (actualIndex < 0 || actualIndex >= habit.completionStatus.length) {
+      return false;
+    }
+
+    // Return the completion status for this day
+    return habit.completionStatus[actualIndex];
   }
 }

@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasks_managment/controller/habits_cubit/habit_cubit.dart';
 import 'package:tasks_managment/core/constants.dart';
+import 'package:tasks_managment/core/router.dart';
+import 'package:tasks_managment/models/habit_model.dart';
 
 class HabitDetailHeader extends StatelessWidget {
   final Color habitColor;
   final VoidCallback onBack;
+  final Habit habit;
 
   const HabitDetailHeader({
-    Key? key,
+    super.key,
     required this.habitColor,
     required this.onBack,
-  }) : super(key: key);
+    required this.habit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +100,8 @@ class HabitDetailHeader extends StatelessWidget {
   }
 
   void _showDeleteConfirmation(BuildContext context) {
+    final habitCubit = context.read<HabitCubit>();
+
     showDialog(
       context: context,
       builder:
@@ -110,9 +117,18 @@ class HabitDetailHeader extends StatelessWidget {
                 child: const Text('Cancel'),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
+                  // Delete the habit using the cubit
+                  await habitCubit.deleteHabit(habit.id);
+
+                  // Make sure to reload habits after deletion
+                  await habitCubit.loadHabits();
+
+                  // Close the dialog
                   Navigator.pop(ctx);
-                  Navigator.pop(context);
+
+                  // Navigate back to the previous screen
+                  context.pop();
                 },
                 child: const Text(
                   'Delete',

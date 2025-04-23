@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:tasks_managment/main.dart';
 import 'package:tasks_managment/services/habit_storage_service.dart';
+import 'package:tasks_managment/services/notification_service.dart';
 
 void main() {
   setUp(() async {
@@ -27,7 +28,12 @@ void main() {
     await habitStorageService.init();
 
     // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp(habitStorageService: habitStorageService));
+    await tester.pumpWidget(
+      MyApp(
+        habitStorageService: habitStorageService,
+        notificationService: NotificationService(),
+      ),
+    );
 
     // Skip the rest of the tests for now, as they're specific to the counter example
     // and our app is a habit tracker
